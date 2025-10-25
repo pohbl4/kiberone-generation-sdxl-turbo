@@ -1,0 +1,26 @@
+[project]
+name = "kiberone-api"
+version = "0.1.0"
+description = "FastAPI gateway for kiberone-generation.com"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.110",
+  "uvicorn[standard]>=0.29",
+  "python-multipart>=0.0.9",
+  "pillow>=10.3",
+  "numpy>=1.26",
+  "pydantic-settings>=2.2",
+  "itsdangerous>=2.1",
+  "orjson>=3.10",
+  "httpx>=0.27"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.1",
+  "pytest-asyncio>=0.23"
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+addopts = "-q"

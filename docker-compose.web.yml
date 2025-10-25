@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: app/api/Dockerfile
+    environment:
+      AUTH_PASS: ${API_AUTH_PASS:?API_AUTH_PASS not set}
+      SESSION_SECRET: ${API_SESSION_SECRET:?API_SESSION_SECRET not set}
+      SESSION_TTL_MIN: ${API_SESSION_TTL_MIN:-30}
+      COOKIE_SECURE: ${API_COOKIE_SECURE:-true}
+      TMP_DIR: /var/lib/kiberone/tmp
+      LOG_DIR: /var/lib/kiberone/logs
+      INFERENCE_URL: ${API_INFERENCE_URL:?API_INFERENCE_URL not set}
+      INFERENCE_HOST_ALIASES: ${API_INFERENCE_HOST_ALIASES:-}
+    volumes:
+      - api-data:/var/lib/kiberone
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./app/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL not set}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL not set}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  api-data:

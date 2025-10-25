@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  inference:
+    build:
+      context: .
+      dockerfile: app/inference/Dockerfile
+    environment:
+      PORT: ${INFERENCE_PORT:-8080}
+      MODEL_LOCAL_DIRS: /models
+      HUGGINGFACE_HUB_CACHE: ${HUGGINGFACE_HUB_CACHE:-/var/lib/kiberone/hf-cache}
+      TRANSFORMERS_CACHE: ${HUGGINGFACE_HUB_CACHE:-/var/lib/kiberone/hf-cache}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute, utility
+    volumes:
+      - ${INFERENCE_MODEL_DIR:?INFERENCE_MODEL_DIR not set}:/models:ro
+      - inference-data:/var/lib/kiberone
+    ports:
+      - "${INFERENCE_PORT:-8080}:${INFERENCE_PORT:-8080}"
+    gpus: all
+    
+    restart: unless-stopped
+
+volumes:
+  inference-data:
