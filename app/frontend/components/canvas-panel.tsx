@@ -86,17 +86,48 @@ type PaletteActionProps = {
   fullWidth?: boolean;
 };
 
+const PaletteToggle = ({ label, active, onClick }: PaletteToggleProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-pressed={active}
+    className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
+      active
+        ? "border-brand bg-brand text-brand-contrast shadow-[0_16px_36px_rgba(244,183,64,0.35)]"
+        : "border-white/10 bg-[#2F2727] text-text-muted hover:border-brand/60 hover:text-text-primary"
+    }`}
+  >
+    {label}
+  </button>
+);
+
+const PaletteAction = ({ icon, label, onClick, disabled, fullWidth }: PaletteActionProps) => (
+  <button
+    type="button"
+    onClick={onClick}
+    disabled={disabled}
+    className={`flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#2F2727] px-4 py-2 text-sm font-medium text-text-primary transition hover:border-brand/60 hover:text-brand disabled:cursor-not-allowed disabled:opacity-60 ${
+      fullWidth ? "w-full" : ""
+    }`}
+  >
+    <Image src={icon} alt="" width={16} height={16} aria-hidden className="opacity-80" />
+    {label}
+  </button>
+);
+
 export default function CanvasPanel() {
   const { t } = useTranslation();
   const baseImage = useAppStore((state) => state.baseImage);
   const setBaseImage = useAppStore((state) => state.setBaseImage);
   const resetHistory = useAppStore((state) => state.resetHistory);
   const clearSketchVersion = useAppStore((state) => state.clearSketchVersion);
+  const prompt = useAppStore((state) => state.prompt);
   const stageRef = useRef<any>(null);
   const sketchLayerRef = useRef<any>(null);
   const generationTimerRef = useRef<number | null>(null);
   const didDrawRef = useRef(false);
   const initialTemplateAppliedRef = useRef(false);
+  const lastPromptRef = useRef<string>("");
   const [tool, setTool] = useState<"brush" | "eraser">("brush");
   const [color, setColor] = useState<string>(COLORS[0]);
   const [strokeWidth, setStrokeWidth] = useState<number>(12);
@@ -449,6 +480,21 @@ export default function CanvasPanel() {
     };
   }, [finishStroke, isDrawing]);
 
+  useEffect(() => {
+    const trimmed = prompt.trim();
+    if (lastPromptRef.current === trimmed) {
+      return;
+    }
+
+    lastPromptRef.current = trimmed;
+
+    if (!baseImage || trimmed.length === 0) {
+      return;
+    }
+
+    void scheduleGeneration();
+  }, [baseImage, prompt, scheduleGeneration]);
+
   const hasStrokes = strokes.length > 0;
 
   return (
@@ -611,38 +657,5 @@ export default function CanvasPanel() {
         </div>
       </div>
     </section>
-  );
-}
-
-function PaletteToggle({ label, active, onClick }: PaletteToggleProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`flex flex-1 items-center justify-center gap-2 rounded-2xl border px-4 py-2 text-sm font-semibold transition ${
-        active
-          ? "border-brand bg-brand text-brand-contrast shadow-[0_16px_36px_rgba(244,183,64,0.35)]"
-          : "border-white/10 bg-[#2F2727] text-text-muted hover:border-brand/60 hover:text-text-primary"
-      }`}
-    >
-      {label}
-    </button>
-  );
-}
-
-function PaletteAction({ icon, label, onClick, disabled, fullWidth }: PaletteActionProps) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-[#2F2727] px-4 py-2 text-sm font-medium text-text-primary transition hover:border-brand/60 hover:text-brand disabled:cursor-not-allowed disabled:opacity-60 ${
-        fullWidth ? "w-full" : ""
-      }`}
-    >
-      <Image src={icon} alt="" width={16} height={16} aria-hidden className="opacity-80" />
-      {label}
-    </button>
   );
 }
