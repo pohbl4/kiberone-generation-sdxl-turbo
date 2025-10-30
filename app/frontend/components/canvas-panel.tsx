@@ -19,7 +19,7 @@ import { redirectIfUnauthorized } from "../lib/auth-redirect";
 
 const CANVAS_SIZE = 448;
 const CANVAS_VIEWPORT = 448;
-const COLORS = ["#FFFFFF", "#0F0A09", "#F4B740", "#EF6F6C", "#B99CFF", "#6ED6B9", "#FFCE73", "#9AC9FF"];
+const COLORS = ["#FFFFFF", "#000000", "#2613fd", "#5e57b3", "#fd139f", "#a4fd13", "#fd1321", "#ff9900"];
 const CONTROL_LABEL_CLASS = "text-xs font-semibold uppercase tracking-[0.32em] text-text-subtle";
 
 const TEMPLATE_SLOTS = [
@@ -353,21 +353,29 @@ export default function CanvasPanel() {
 
     generationTimerRef.current = window.setTimeout(async () => {
       const stage = stageRef.current;
+
       try {
-        const sketchCanvas: HTMLCanvasElement | undefined = sketchLayerRef.current?.toCanvas?.({
-          pixelRatio: 1
-        });
+        // 1) Получаем canvas слоя эскиза, либо создаём пустой прозрачный
+        let sketchCanvas: HTMLCanvasElement | undefined =
+          sketchLayerRef.current?.toCanvas?.({ pixelRatio: 1 });
+
         if (!sketchCanvas) {
-          return;
+          const empty = document.createElement("canvas");
+          empty.width = CANVAS_SIZE;
+          empty.height = CANVAS_SIZE;
+          // прозрачный фон по умолчанию — ничего рисовать не нужно
+          sketchCanvas = empty;
         }
 
         const sketchDataUrl = sketchCanvas.toDataURL("image/png");
-        let canvasDataUrl: string | null = null;
 
+        // 2) Снимок полного холста (если нужен бэкенду)
+        let canvasDataUrl: string | null = null;
         if (stage) {
           canvasDataUrl = stage.toDataURL({ mimeType: "image/png", pixelRatio: 1 });
         }
 
+        // 3) Отправляем генерацию всегда — даже без штрихов
         await submitGeneration(sketchDataUrl, canvasDataUrl, "normal");
       } catch (error) {
         console.warn("Failed to capture full canvas snapshot", error);
@@ -482,18 +490,29 @@ export default function CanvasPanel() {
 
   useEffect(() => {
     const trimmed = prompt.trim();
-    if (lastPromptRef.current === trimmed) {
-      return;
-    }
-
+    if (lastPromptRef.current === trimmed) return;
     lastPromptRef.current = trimmed;
 
-    if (!baseImage || trimmed.length === 0) {
-      return;
-    }
+    if (trimmed.length === 0) return;
 
-    void scheduleGeneration();
-  }, [baseImage, prompt, scheduleGeneration]);
+    const tryGenerate = async () => {
+      // 1) Гарантируем, что есть baseImage с image_id на бэке
+      if (!baseImage) {
+        const tplId = selectedTemplate ?? TEMPLATE_SLOTS[0].id;
+        await handleTemplateSelect(tplId); // <-- вместо setBaseImage с локальным превью
+      }
+
+      // 2) Дождаться, пока Konva создаст слои/Stage
+      await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+
+      // 3) Триггерим генерацию (у тебя уже есть фолбэк на пустой эскиз в scheduleGeneration)
+      await scheduleGeneration();
+    };
+
+    void tryGenerate();
+  }, [prompt, baseImage, selectedTemplate, scheduleGeneration, handleTemplateSelect]);
+
+
 
   const hasStrokes = strokes.length > 0;
 
