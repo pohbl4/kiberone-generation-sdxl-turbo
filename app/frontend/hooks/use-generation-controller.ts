@@ -98,6 +98,43 @@ function getApiOrigin(): string | null {
   }
 }
 
+async function ensureNonEmptySketch(dataUrl: string): Promise<string> {
+  // грузим DataURL в <img>
+  const img = new Image();
+  img.crossOrigin = "anonymous";
+  const loaded = new Promise<void>((res, rej) => {
+    img.onload = () => res();
+    img.onerror = rej;
+  });
+  img.src = dataUrl;
+  await loaded;
+
+  const w = img.naturalWidth || 512;
+  const h = img.naturalHeight || 512;
+  const c = document.createElement("canvas");
+  c.width = w;
+  c.height = h;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(img, 0, 0);
+
+  const buf = ctx.getImageData(0, 0, w, h);
+  const a = buf.data; // RGBA
+  let hasAlpha = false;
+  for (let i = 3; i < a.length; i += 4) {
+    if (a[i] !== 0) { hasAlpha = true; break; }
+  }
+  if (hasAlpha) {
+    return dataUrl; // маска не пустая — всё ок
+  }
+
+  // рисуем 1px очень прозрачной точки (альфа = 1 из 255) в углу
+  const imgData = ctx.createImageData(1, 1);
+  imgData.data.set([0, 0, 0, 1]); // чёрный, alpha=1
+  ctx.putImageData(imgData, 0, 0);
+
+  return c.toDataURL("image/png");
+}
+
 async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
   const parts = dataUrl.split(",", 2);
   if (parts.length !== 2) {
@@ -286,8 +323,9 @@ export function useGenerationController() {
         return;
       }
       try {
-        const [sketchBlob, canvasBlob] = await Promise.all([
-          dataUrlToBlob(sketchDataUrl),
+        const safeSketchDataUrl = await ensureNonEmptySketch(sketchDataUrl);
+          const [sketchBlob, canvasBlob] = await Promise.all([
+            dataUrlToBlob(safeSketchDataUrl),
           canvasDataUrl ? dataUrlToBlob(canvasDataUrl) : Promise.resolve<Blob | null>(null),
         ]);
         const formData = new FormData();
