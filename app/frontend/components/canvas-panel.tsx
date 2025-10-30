@@ -489,6 +489,18 @@ export default function CanvasPanel() {
   }, [finishStroke, isDrawing]);
 
   useEffect(() => {
+    if (!isDrawing) return;
+
+    const handleMove = (evt: PointerEvent) => {
+      handlePointerMove({ evt });
+    };
+
+    window.addEventListener("pointermove", handleMove);
+    return () => window.removeEventListener("pointermove", handleMove);
+  }, [isDrawing, handlePointerMove]);
+
+
+  useEffect(() => {
     const trimmed = prompt.trim();
     if (lastPromptRef.current === trimmed) return;
     lastPromptRef.current = trimmed;
@@ -536,11 +548,9 @@ export default function CanvasPanel() {
                     onMouseDown={handlePointerDown}
                     onMouseMove={handlePointerMove}
                     onMouseUp={handlePointerUp}
-                    onMouseLeave={handlePointerUp}
                     onTouchStart={handlePointerDown}
                     onTouchMove={handlePointerMove}
                     onTouchEnd={handlePointerUp}
-                    onTouchCancel={handlePointerUp}
                     style={{
                       width: viewportSize,
                       height: viewportSize,
